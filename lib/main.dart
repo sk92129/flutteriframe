@@ -1,28 +1,61 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-void main() {
+Future main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb &&
+      kDebugMode &&
+      defaultTargetPlatform == TargetPlatform.android) {
+    await InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
+  }
   runApp(const MaterialApp(home: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  final webViewController = WebViewController()
-    ..loadRequest(Uri.parse('https://www.cnn.com/2024/06/25/politics/special-counsel-mar-a-lago-documents-trump/index.html'));
+  final GlobalKey webViewKey = GlobalKey();
+
+  InAppWebViewController? webViewController;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text("Flutter WebView"),
-        ),
-        body: WebViewWidget(controller: webViewController));
+    return WillPopScope(
+      onWillPop: () async {
+        // detect Android back button click
+        final controller = webViewController;
+        if (controller != null) {
+          if (await controller.canGoBack()) {
+            controller.goBack();
+            return false;
+          }
+        }
+        return true;
+      },
+      child: Scaffold(
+          appBar: AppBar(
+            title: const Text("InAppWebView test"),
+          ),
+          body: Column(children: <Widget>[
+            Expanded(
+              child: InAppWebView(
+                key: webViewKey,
+                initialUrlRequest:
+                URLRequest(url: WebUri("https://deadsimplechat.com/dashboard")),
+                initialSettings: InAppWebViewSettings(
+                    allowsBackForwardNavigationGestures: true),
+                onWebViewCreated: (controller) {
+                  webViewController = controller;
+                },
+              ),
+            ),
+          ])),
+    );
   }
 }
